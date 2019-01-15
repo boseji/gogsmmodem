@@ -274,3 +274,25 @@ func TestSupportedStorageAreas(t *testing.T) {
 	}
 	modem.Close()
 }
+
+var phoneFunctionReplay = []string{
+	"->AT+CFUN?\r\n",
+	"<-\r\n+CFUN: 1\r\n\r\nOK\r\n",
+}
+
+func TestGetPhoneFunctionState(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, phoneFunctionReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+	msg, _ := modem.GetPhoneFunctionState()
+	expected := PhoneFunction{1}
+	if fmt.Sprint(*msg) != fmt.Sprint(expected) {
+		t.Errorf("Expected: %#v, got %#v", expected, msg)
+	}
+	modem.Close()
+}

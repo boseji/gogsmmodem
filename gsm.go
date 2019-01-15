@@ -126,6 +126,17 @@ func (self *Modem) SendMessage(telephone, body string) error {
 	return err
 }
 
+func (self *Modem) GetPhoneFunctionState() (*PhoneFunction, error) {
+	msg, err := self.send("+CFUN?")
+	if err != nil {
+		return nil, err
+	}
+	if p, ok := msg.(PhoneFunction); ok {
+		return &p, nil
+	}
+	return nil, errors.New("Unexpected response type")
+}
+
 func lineChannel(r io.Reader) chan string {
 	ret := make(chan string)
 	go func() {
