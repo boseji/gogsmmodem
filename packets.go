@@ -14,6 +14,11 @@ type NetworkStatus struct {
 	Network string
 }
 
+// +CFUN
+type PhoneFunction struct {
+	Function int
+}
+
 // +CMTI
 type MessageNotification struct {
 	Storage string

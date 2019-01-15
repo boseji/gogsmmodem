@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 
@@ -17,6 +18,7 @@ type Modem struct {
 	port  io.ReadWriteCloser
 	rx    chan Packet
 	tx    chan string
+	l     *log.Logger
 }
 
 var OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
@@ -25,8 +27,10 @@ var OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
 
 func Open(config *serial.Config, debug bool) (*Modem, error) {
 	port, err := OpenPort(config)
+	lg := log.New(os.Stderr, "[gsmmodem]", log.LstdFlags)
 	if debug {
-		port = LogReadWriteCloser{port}
+		port = LogReadWriteCloser{port,
+			log.New(os.Stderr, "[gsmmodem][debug]", log.LstdFlags)}
 	}
 	if err != nil {
 		return nil, err
@@ -40,6 +44,7 @@ func Open(config *serial.Config, debug bool) (*Modem, error) {
 		port:  port,
 		rx:    rx,
 		tx:    tx,
+		l:     lg,
 	}
 	// run send/receive goroutine
 	go modem.listen()
@@ -169,6 +174,8 @@ func parsePacket(status, header, body string) Packet {
 		return ServiceStatus{args[0].(string)}
 	case "+ZDONR":
 		return NetworkStatus{args[0].(string)}
+	case "+CFUN":
+		return PhoneFunction{args[0].(int)}
 	case "+CMTI":
 		return MessageNotification{args[0].(string), args[1].(int)}
 	case "+CSCA":
@@ -307,12 +314,12 @@ func (self *Modem) init() error {
 	if _, err := self.send("Z"); err != nil {
 		return err
 	}
-	log.Println("Reset")
+	self.l.Println("Reset")
 	// turn off echo
 	if _, err := self.send("E0"); err != nil {
 		return err
 	}
-	log.Println("Echo off")
+	self.l.Println("Echo off")
 	// use combined storage (MT)
 	msg, err := self.send("+CPMS", "SM", "SM", "SM")
 	if err != nil {
@@ -322,12 +329,12 @@ func (self *Modem) init() error {
 		}
 	}
 	sinfo := msg.(StorageInfo)
-	log.Printf("Set SMS Storage: %d/%d used\n", sinfo.UsedSpace1, sinfo.MaxSpace1)
+	self.l.Printf("Set SMS Storage: %d/%d used\n", sinfo.UsedSpace1, sinfo.MaxSpace1)
 	// set SMS text mode - easiest to implement. Ignore response which is
 	// often a benign error.
 	self.send("+CMGF", 1)
 
-	log.Println("Set SMS text mode")
+	self.l.Println("Set SMS text mode")
 	// get SMSC
 	// the modem complains if SMSC hasn't been set, but stores it correctly, so
 	// query for stored value, then send a set from the query response.
@@ -336,11 +343,11 @@ func (self *Modem) init() error {
 		return err
 	}
 	smsc := r.(SMSCAddress)
-	log.Println("Got SMSC:", smsc.Args)
+	self.l.Println("Got SMSC:", smsc.Args)
 	r, err = self.send("+CSCA", smsc.Args...)
 	if err != nil {
 		return err
 	}
-	log.Println("Set SMSC to:", smsc.Args)
+	self.l.Println("Set SMSC to:", smsc.Args)
 	return nil
 }
