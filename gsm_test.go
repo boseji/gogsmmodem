@@ -296,3 +296,29 @@ func TestGetPhoneFunctionState(t *testing.T) {
 	}
 	modem.Close()
 }
+
+var ussdSendSingleReplay = []string{
+	"->AT+CUSD=1,\"*123#\"\r\n",
+	"<-\r\n+CUSD: 0,\"Bal:Rs. 18.52 \r\nExpiry:  01/12/2019 \r\nState: ACTIVE \",15\r\n\r\nOK\r\n",
+}
+
+func TestSendUSSDSingle(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, ussdSendSingleReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+	msg, _ := modem.SendUSSDSingle("*123#")
+	expected := USSDResponse{
+		Command:   "+CUSD",
+		Response:  " 0,Bal:Rs. 18.52 Expiry:  01/12/2019 State: ACTIVE ,15",
+		Processed: []string{"0", "Bal", "Rs.", "18.52", "Expiry", "01/12/2019", "State", "ACTIVE", "15"},
+	}
+	if fmt.Sprint(*msg) != fmt.Sprint(expected) {
+		t.Errorf("Expected: %#v, got %#v", expected, msg)
+	}
+	modem.Close()
+}

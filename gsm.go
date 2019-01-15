@@ -137,6 +137,19 @@ func (self *Modem) GetPhoneFunctionState() (*PhoneFunction, error) {
 	return nil, errors.New("Unexpected response type")
 }
 
+func (self *Modem) SendUSSDSingle(cmd string) (*USSDResponse, error) {
+	self.l.Printf("Send USSD Command %q", cmd)
+	msg, err := self.send("+CUSD", 1, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if p, ok := msg.(USSDResponse); ok {
+		self.l.Printf("Got USSD Response: %q", p.Response)
+		return &p, nil
+	}
+	return nil, errors.New("Unexpected response type")
+}
+
 func lineChannel(r io.Reader) chan string {
 	ret := make(chan string)
 	go func() {
@@ -237,6 +250,27 @@ func parsePacket(status, header, body string) Packet {
 			}
 			break
 
+		}
+	case "+CUSD":
+		cmd := ls[0]
+		head := ""
+		for _, m := range ls[1:] {
+			head = head + m
+		}
+		head = head[:len(head)-1] // Remove the Last |
+		// Remove Quotes
+		head = strings.Replace(head+" "+body, "\"", "", -1)
+		// Filter function for Breaking into Fields
+		f := func(c rune) bool {
+			if c == ',' || c == ':' || c == '|' || c == ' ' {
+				return true
+			}
+			return false
+		}
+		return USSDResponse{
+			Command:   cmd,
+			Response:  head,
+			Processed: strings.FieldsFunc(head, f),
 		}
 	case "":
 		if status == "OK" {

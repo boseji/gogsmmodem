@@ -55,6 +55,13 @@ type StorageInfo struct {
 // +CMGL
 type MessageList []Message
 
+// +CUSD
+type USSDResponse struct {
+	Command   string
+	Response  string
+	Processed []string
+}
+
 // Simple OK response
 type OK struct{}
 
