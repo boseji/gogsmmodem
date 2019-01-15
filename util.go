@@ -237,22 +237,23 @@ func gsmEncode(s string) string {
 // A logging ReadWriteCloser for debugging
 type LogReadWriteCloser struct {
 	f io.ReadWriteCloser
+	l *log.Logger
 }
 
 func (self LogReadWriteCloser) Read(b []byte) (int, error) {
 	n, err := self.f.Read(b)
-	log.Printf("Read(%#v) = (%d, %v)\n", string(b[:n]), n, err)
+	self.l.Printf("Read(%#v) = (%d, %v)\n", string(b[:n]), n, err)
 	return n, err
 }
 
 func (self LogReadWriteCloser) Write(b []byte) (int, error) {
 	n, err := self.f.Write(b)
-	log.Printf("Write(%#v) = (%d, %v)\n", string(b), n, err)
+	self.l.Printf("Write(%#v) = (%d, %v)\n", string(b), n, err)
 	return n, err
 }
 
 func (self LogReadWriteCloser) Close() error {
 	err := self.f.Close()
-	log.Printf("Close() = %v\n", err)
+	self.l.Printf("Close() = %v\n", err)
 	return err
 }
