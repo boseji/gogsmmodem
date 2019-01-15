@@ -27,10 +27,10 @@ var OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
 
 func Open(config *serial.Config, debug bool) (*Modem, error) {
 	port, err := OpenPort(config)
-	lg := log.New(os.Stderr, "[gsmmodem]", log.LstdFlags)
+	lg := log.New(os.Stderr, "[gsmmodem] ", log.LstdFlags)
 	if debug {
 		port = LogReadWriteCloser{port,
-			log.New(os.Stderr, "[gsmmodem][debug]", log.LstdFlags)}
+			log.New(os.Stderr, "[gsmmodem][debug] ", log.LstdFlags)}
 	}
 	if err != nil {
 		return nil, err
